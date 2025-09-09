@@ -1,236 +1,459 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>BOOKVE — Read Fallback</title>
-  <style>
-    :root { --seat-size: 44px; --gap: 8px; --aisle: 22px;
-      --bg:#0f172a; --text:#e5e7eb; --regular:#f97316; --vip:#06b6d4; --taken:#6b7280; --mine:#22c55e; --blocked:#0b1220; --badge:#0ea5e9; --screen:#e5e7eb; --pending:#facc15; }
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;display:grid;place-items:start center;min-height:100svh;padding:24px}
-    .app{width:min(1150px,96vw)}
-    h1{margin:0 0 6px;font-size:22px;font-weight:800}
-    .sub{margin:0 0 8px;opacity:.9}
-    .topbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
-    .input{display:inline-flex;align-items:center;gap:8px;padding:10px 12px;border-radius:10px;background:#111827}
-    .input input{background:transparent;border:none;outline:none;color:var(--text);font-size:14px;width:220px}
-    button{border:none;background:var(--badge);color:white;padding:10px 14px;border-radius:10px;font-weight:600;cursor:pointer}
-    button.secondary{background:#374151}
-    .screen{text-align:center;padding:10px;margin:16px auto 12px;border-radius:10px;color:#111827;background:var(--screen);width:70%;font-weight:700;letter-spacing:.5px}
-    .row{display:grid;grid-auto-flow:column;gap:var(--gap);align-items:center}
-    .rowLabel{width:28px;text-align:right;opacity:.95;font-weight:800}
-    .rowLabel.right{text-align:left}
-    .colHeader{text-align:center;opacity:.85;font-weight:800}
-    .seat{width:var(--seat-size);height:var(--seat-size);border-radius:10px;background:var(--regular);display:grid;place-items:center;font-weight:800;cursor:pointer;position:relative;user-select:none;transition:transform .05s ease;outline:2px solid transparent}
-    .seat.vip{background:var(--vip)}
-    .seat:hover{transform:translateY(-2px)}
-    .seat.pending{outline-color:var(--pending)}
-    .seat.taken{background:var(--taken)!important;cursor:not-allowed;pointer-events:none}
-    .seat.mine{background:var(--mine)!important;outline-color:#16a34a;pointer-events:none}
-    .seat.blocked{background:var(--blocked);cursor:default}
-    .seat small{position:absolute;bottom:4px;font-size:10px;font-weight:700;opacity:.95}
-    .aisle-v{width:var(--aisle)}
-    .footer{margin-top:18px;opacity:.85;font-size:12px;text-align:center}
-    .actions{display:flex;gap:10px}
-    table{background:#0b1220;border:1px solid #1f2937;border-radius:10px;overflow:hidden}
-    th,td{border:1px solid #1f2937}
-    #status{margin-top:10px;opacity:.9}
-    code.bad{color:#fecaca}
-    code.ok{color:#86efac}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BookVe - Đặt chỗ ngồi trực tuyến</title>
+    <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <style>
+        .seat {
+            transition: all 0.3s ease;
+        }
+        .seat:hover {
+            transform: scale(1.1);
+        }
+        .screen {
+            background: linear-gradient(to bottom, rgba(255,255,255,0.2), rgba(255,255,255,0.05));
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+        .selected {
+            background-color: #3b82f6 !important;
+            color: white !important;
+        }
+        .booked {
+            background-color: #ef4444 !important;
+            color: white !important;
+            cursor: not-allowed;
+        }
+    </style>
 </head>
-<body>
-  <div class="app">
-    <h1>BOOKVE — Phòng Mưa Đỏ</h1>
-    <p class="sub">Suất chiếu: <strong>14:15</strong></p>
-    <div class="topbar">
-      <div class="input">
-        <span>👤 Tên bạn:</span>
-        <input id="nameInput" placeholder="Nhập tên để giữ ghế…" />
-      </div>
-      <div class="actions">
-        <button id="confirmBtn">Xác nhận</button>
-        <button id="releaseBtn" class="secondary" title="Bỏ ghế của bạn">Bỏ ghế</button>
-      </div>
-    </div>
+<body class="bg-gray-900 text-white min-h-screen">
+    <div id="vanta-bg" class="fixed inset-0 -z-10"></div>
+    
+    <header class="py-6 px-4 md:px-8 bg-gray-900 bg-opacity-80 backdrop-blur-sm">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl md:text-3xl font-bold text-blue-400 flex items-center">
+                <i data-feather="film" class="mr-2"></i> BookVe By Minh Wuan
+            </h1>
+            <nav class="hidden md:flex space-x-6">
+                <a href="#" class="hover:text-blue-400 transition">Trang chủ</a>
+                <a href="#" class="hover:text-blue-400 transition">Phim</a>
+                <a href="#" class="hover:text-blue-400 transition">Rạp</a>
+                <a href="#" class="hover:text-blue-400 transition">Khuyến mãi</a>
+                <a href="#" class="hover:text-blue-400 transition">Liên hệ</a>
+            </nav>
+            <button class="md:hidden">
+                <i data-feather="menu"></i>
+            </button>
+        </div>
+    </header>
 
-    <div id="status">Read status: <code id="readStatus">đang khởi tạo…</code> — Fallback: <code id="fallbackMode">tắt</code></div>
+    <main class="container mx-auto px-4 py-8">
+        <div class="bg-gray-800 bg-opacity-80 rounded-xl p-6 backdrop-blur-sm">
+            <div class="flex flex-col md:flex-row gap-8">
+                <div class="md:w-1/3">
+                    <div class="sticky top-24">
+                        <div class="bg-gray-700 rounded-lg p-6 mb-6">
+                            <h2 class="text-xl font-bold mb-4">Thông tin phim</h2>
+                            <div class="flex items-start mb-4">
+                                <img src="https://image-worker.momocdn.net/img/87791512525791828-luudanh.png?size=M&referer=cinema.momocdn.net" alt="Movie Poster" class="w-20 h-28 rounded-lg object-cover mr-4">
+                                <div>
+                                    <h3 class="font-bold">Mưa Đỏ</h3>
+                                    <p class="text-gray-400 text-sm">2h 30m • 16+</p>
+                                    <div class="flex mt-2">
+                                        <span class="bg-yellow-500 text-black text-xs px-2 py-1 rounded mr-2">2D</span>
+                                        <span class="bg-purple-600 text-white text-xs px-2 py-1 rounded">Phụ đề</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="space-y-3">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-400">Rạp:</span>
+                                    <span class="font-medium">Lotte Thanh Hóa</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-400">Ngày:</span>
+                                    <span class="font-medium">14/09/2025</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-400">Suất:</span>
+                                    <span class="font-medium">14:15</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-400">Phòng:</span>
+                                    <span class="font-medium">Cinema 3</span>
+                                </div>
+                            </div>
+                        </div>
 
-    <div class="screen">MÀN HÌNH</div>
-    <div id="headerRow" class="row" aria-hidden="true"></div>
-    <div id="grid" class="grid" role="grid" aria-label="Sơ đồ chỗ ngồi"></div>
+                        <div class="bg-gray-700 rounded-lg p-6">
+                            <h2 class="text-xl font-bold mb-4">Ghế đã chọn</h2>
+                            <div class="mb-4">
+                                <label for="customer-name" class="block text-sm font-medium text-gray-300 mb-2">Tên người đặt</label>
+                                <input type="text" id="customer-name" class="w-full bg-gray-600 border border-gray-500 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div id="selected-seats" class="space-y-2 mb-4">
+                                <!-- Selected seats will appear here -->
+                            </div>
+                            <div class="mt-6">
+                                <h3 class="font-bold mb-2">Danh sách đã đặt</h3>
+                                <div id="booked-list" class="space-y-2 text-sm">
+                                    <!-- Booked seats list will appear here -->
+                                </div>
+                            </div>
+                            <div class="space-y-3">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-400">Tổng cộng:</span>
+                                    <span id="total-price" class="font-bold text-lg">0 VND</span>
+                                </div>
+                                <button id="checkout-btn" class="w-full bg-blue-600 hover:bg-blue-700 py-3 rounded-lg font-bold transition disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                    Thanh toán
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-    <h2 style="margin-top:16px">Danh sách người đã chọn ghế</h2>
-    <table id="bookingList" cellspacing="0" cellpadding="8" style="margin-top:8px; width:100%; border-collapse:collapse; text-align:center;">
-      <thead><tr><th>Họ tên</th><th>Ghế</th><th>Loại ghế</th><th>Thời gian</th></tr></thead>
-      <tbody></tbody>
-    </table>
+                <div class="md:w-2/3">
+                    <div class="screen w-full h-8 md:h-12 mb-8 rounded-md mx-auto text-center text-gray-300 font-medium flex items-center justify-center">
+                        MÀN HÌNH
+                    </div>
 
-    <div class="footer">Web được tạo bởi <strong>Đoàn Minh Quân</strong></div>
-  </div>
+                    <div class="grid grid-cols-10 gap-2 md:gap-4 mb-8" id="seats-container">
+                        <!-- Seats will be generated here -->
+                    </div>
 
-  <script type="module">
-    const firebaseConfig = {
-      apiKey: "AIzaSyDSYH9yGzdtm3RjZuR7yjLhj4VH9qm-9PQ",
-      authDomain: "xemphim-aed3c.firebaseapp.com",
-      databaseURL: "https://xemphim-aed3c-default-rtdb.firebaseio.com",
-      projectId: "xemphim-aed3c",
-      storageBucket: "xemphim-aed3c.firebasestorage.app",
-      messagingSenderId: "175453208138",
-      appId: "1:175453208138:web:7436fe257eaafb2c6bf0b3"
-    };
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
-    import { getDatabase, ref, onValue, runTransaction, set, get, child, remove } 
-      from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
-    const app = initializeApp(firebaseConfig);
-    const db  = getDatabase(app);
+                    <div class="flex flex-wrap justify-center gap-4 md:gap-8 mb-8">
+                        <div class="flex items-center">
+                            <div class="w-6 h-6 rounded bg-gray-600 mr-2"></div>
+                            <span class="text-sm">Có thể chọn</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-6 h-6 rounded bg-blue-600 mr-2"></div>
+                            <span class="text-sm">Đã chọn</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-6 h-6 rounded bg-red-500 mr-2"></div>
+                            <span class="text-sm">Đã bán</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div class="w-6 h-6 rounded bg-yellow-500 mr-2"></div>
+                            <span class="text-sm">VIP (D-J)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
 
-    const ROOM = "mua-do-1415";
-    const USER_KEY="seat_user_id_v1", NAME_KEY="seat_user_name_v1";
-    const userId = localStorage.getItem(USER_KEY) || (()=>{const id=crypto.getRandomValues(new Uint32Array(4)).join("-"); localStorage.setItem(USER_KEY,id); return id;})();
-    const nameInput=document.getElementById('nameInput');
-    nameInput.value = localStorage.getItem(NAME_KEY)||"";
-    nameInput.addEventListener('input', ()=> localStorage.setItem(NAME_KEY, nameInput.value.trim()));
-    const releaseBtn=document.getElementById('releaseBtn');
-    const confirmBtn=document.getElementById('confirmBtn');
-    const readStatus=document.getElementById('readStatus');
-    const fallbackMode=document.getElementById('fallbackMode');
+    <footer class="bg-gray-900 bg-opacity-90 py-8 mt-12">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div>
+                    <h3 class="text-xl font-bold text-blue-400 mb-4">BookVe by Minh Wuan</h3>
+                    <p class="text-gray-400">Hệ thống đặt vé xem phim trực tuyến hàng đầu Việt Nam được vận hành bởi Đoàn Minh Quân.</p>
+                </div>
+                <div>
+                    <h4 class="font-bold mb-4">Liên kết</h4>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-gray-400 hover:text-blue-400 transition">Về chúng tôi</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-blue-400 transition">Điều khoản</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-blue-400 transition">Chính sách</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-bold mb-4">Hỗ trợ</h4>
+                    <ul class="space-y-2">
+                        <li><a href="#" class="text-gray-400 hover:text-blue-400 transition">Câu hỏi thường gặp</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-blue-400 transition">Hướng dẫn đặt vé</a></li>
+                        <li><a href="#" class="text-gray-400 hover:text-blue-400 transition">Liên hệ</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-bold mb-4">Kết nối</h4>
+                    <div class="flex space-x-4">
+                        <a href="#" class="text-gray-400 hover:text-blue-400 transition"><i data-feather="facebook"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-blue-400 transition"><i data-feather="instagram"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-blue-400 transition"><i data-feather="twitter"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-blue-400 transition"><i data-feather="youtube"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-gray-800 mt-8 pt-8 text-center text-gray-500">
+                <p>© 2025 Đoàn Minh Quân. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
 
-    const rows="ABCDEFGHIJ".split("");
-    const cols=Array.from({length:11},(_,i)=>i+1);
-    const verticalAisleAfter=9;
-    const blocked=new Set(["D10","D11","E10","E11","F10","F11","G10","G11","H10","H11","J6","J7","A10","A11","B10","B11","C10","C11"]);
-    const seatClass=row=> (["A","B","C"].includes(row))?"regular":"vip";
+    <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.globe.min.js"></script>
+    <script>
+        // Initialize Vanta.js background
+        VANTA.GLOBE({
+            el: "#vanta-bg",
+            mouseControls: true,
+            touchControls: true,
+            gyroControls: false,
+            minHeight: 200.00,
+            minWidth: 200.00,
+            scale: 1.00,
+            scaleMobile: 1.00,
+            color: 0x3b82f6,
+            backgroundColor: 0x111827,
+            size: 0.8
+        });
 
-    const headerRow=document.getElementById('headerRow');
-    const grid=document.getElementById('grid');
-    function renderHeader(){
-      headerRow.innerHTML=""; headerRow.appendChild(document.createElement("div"));
-      for(const c of cols){
-        if(c===verticalAisleAfter+1){const s=document.createElement("div"); s.className="aisle-v"; headerRow.appendChild(s);}
-        const h=document.createElement("div"); h.className="colHeader"; h.style.width="var(--seat-size)"; h.textContent=c; headerRow.appendChild(h);
-      }
-      const right=document.createElement("div"); right.style.width="28px"; headerRow.appendChild(right);
-    }
-    const seatId=(r,c)=>`${r}${c}`;
-    let pendingSeat=null;
-    function renderGrid(){
-      grid.innerHTML="";
-      for(const r of rows){
-        const rowEl=document.createElement("div"); rowEl.className="row"; rowEl.setAttribute("role","row");
-        const left=document.createElement("div"); left.className="rowLabel"; left.textContent=r; rowEl.appendChild(left);
-        for(const c of cols){
-          if(c===verticalAisleAfter+1){const v=document.createElement("div"); v.className="aisle-v"; rowEl.appendChild(v);}
-          const id=seatId(r,c);
-          const el=document.createElement("div"); el.className=`seat ${seatClass(r)}`; el.dataset.id=id;
-          if(blocked.has(id)){ el.classList.add('blocked'); } else { el.textContent=c; const holder=document.createElement("small"); holder.className="holder"; el.appendChild(holder); }
-          rowEl.appendChild(el);
+        // Initialize AOS
+        AOS.init();
+
+        // Generate seats
+        const seatsContainer = document.getElementById('seats-container');
+        const selectedSeatsContainer = document.getElementById('selected-seats');
+        const totalPriceElement = document.getElementById('total-price');
+        const checkoutBtn = document.getElementById('checkout-btn');
+
+        let selectedSeats = [];
+        const seatPrices = {
+            normal: 58000,
+            vip: 58000
+        };
+        let bookedSeats = [];
+        let bookings = [];
+        localStorage.removeItem('bookedSeats');
+        localStorage.removeItem('bookings');
+
+        // Generate seat layout
+        function generateSeats() {
+            let html = '';
+            const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+            // Get booked seats from localStorage
+            const bookedSeats = [];
+            
+            // Add walkway after row C
+            html += `
+                <div class="col-span-10 h-8 my-4 flex items-center justify-center">
+                    <div class="w-full border-t-2 border-dashed border-gray-600"></div>
+                </div>
+            `;
+
+            rows.forEach(row => {
+                // Add row indicator
+                html += `<div class="col-span-10 text-center text-gray-400 font-medium mb-2">${row}</div>`;
+                
+                const isVipRow = ['D','E','F','G','H','I','J'].includes(row);
+                const maxSeats = ['I','J'].includes(row) ? 11 : 9;
+                let seatsInRow = 0;
+                
+                for (let i = 1; i <= maxSeats; i++) {
+                    // Skip seats 6-7 in row J
+                    if (row === 'J' && (i === 6 || i === 7)) continue;
+                    
+                    const seatId = `${row}${i}`;
+                    let seatClass = isVipRow ? 'bg-yellow-500 hover:bg-yellow-400' : 'bg-gray-600 hover:bg-gray-500';
+                    let disabled = false;
+                    
+                    if (bookedSeats.includes(seatId)) {
+                        seatClass = 'bg-red-500 cursor-not-allowed';
+                        disabled = true;
+                    }
+                    
+                    // Special handling for I and J rows (seats 10-11)
+                    if ((row === 'I' || row === 'J') && i >= 10) {
+                        // Add empty space before seats 10-11
+                        html += `<div class="col-span-${row === 'I' ? 1 : 2}"></div>`;
+                    }
+                    
+                    html += `
+                        <div 
+                            class="seat w-full aspect-square rounded flex items-center justify-center text-xs font-bold ${seatClass} ${disabled ? 'booked' : ''}" 
+                            data-seat="${seatId}"
+                            data-type="${isVipRow ? 'vip' : 'normal'}"
+                            ${disabled ? 'disabled' : ''}
+                        >
+                            ${i}
+                        </div>
+                    `;
+                    seatsInRow++;
+                }
+                
+                // Add empty columns to maintain grid alignment
+                if (row === 'I' || row === 'J') {
+                    const emptyCols = row === 'I' ? 10 - seatsInRow : 10 - seatsInRow - 1;
+                    if (emptyCols > 0) {
+                        html += `<div class="col-span-${emptyCols}"></div>`;
+                    }
+                }
+            });
+            
+            seatsContainer.innerHTML = html;
+            
+            // Add event listeners to seats
+            document.querySelectorAll('.seat:not(.booked)').forEach(seat => {
+                seat.addEventListener('click', toggleSeatSelection);
+            });
         }
-        const right=document.createElement("div"); right.className="rowLabel right"; right.textContent=r; rowEl.appendChild(right);
-        grid.appendChild(rowEl);
-      }
-    }
-    renderHeader(); renderGrid();
 
-    grid.addEventListener('click', e=>{
-      const el=e.target.closest('.seat'); if(!el) return;
-      if (el.classList.contains('blocked')||el.classList.contains('taken')||el.classList.contains('mine')) return;
-      document.querySelectorAll('.seat').forEach(s=>s.classList.remove('pending'));
-      el.classList.add('pending'); pendingSeat=el.dataset.id;
-    });
-
-    const seatsRef=ref(db, `rooms/${ROOM}/seats`);
-    const claimsRef=ref(db, `rooms/${ROOM}/claims`);
-    let mySeat=null; let fallbackTimer=null;
-
-    function applySnapshot(data){
-      mySeat=null;
-      document.querySelectorAll('.seat').forEach(el=>{
-        if(el.classList.contains('blocked')) return;
-        const id=el.dataset.id, s=data[id];
-        el.classList.remove('taken','mine');
-        const holder=el.querySelector('.holder'); if(holder) holder.textContent="";
-        if(s && s.userId){
-          if(s.userId===userId){ el.classList.add('mine'); mySeat=id; }
-          else { el.classList.add('taken'); }
-          if(holder && s.name) holder.textContent=s.name;
+        // Toggle seat selection
+        function toggleSeatSelection(e) {
+            const seatElement = e.currentTarget;
+            const seatId = seatElement.dataset.seat;
+            const seatType = seatElement.dataset.type;
+            
+            // If already selected, deselect it
+            if (seatElement.classList.contains('selected')) {
+                seatElement.classList.remove('selected');
+                selectedSeats = [];
+                updateSelectedSeatsDisplay();
+                return;
+            }
+            
+            // Deselect any previously selected seat
+            document.querySelectorAll('.seat.selected').forEach(el => {
+                el.classList.remove('selected');
+            });
+            
+            // Select new seat
+            seatElement.classList.add('selected');
+            selectedSeats = [{
+                id: seatId,
+                type: seatType,
+                price: seatType === 'vip' ? seatPrices.vip : seatPrices.normal
+            }];
+            
+            updateSelectedSeatsDisplay();
         }
-      });
-      releaseBtn.disabled=!mySeat;
-      const tbody=document.querySelector("#bookingList tbody");
-      tbody.innerHTML="";
-      const entries=Object.entries(data || {}).filter(([_,s])=>s&&s.userId&&s.name);
-      entries.sort((a,b)=>(a[1].ts||0)-(b[1].ts||0));
-      for(const [id,s] of entries){
-        const tr=document.createElement("tr");
-        const tdName=document.createElement("td"); tdName.textContent=s.name;
-        const tdSeat=document.createElement("td"); tdSeat.textContent=id;
-        const tdType=document.createElement("td"); tdType.textContent=(["A","B","C"].includes(id[0]))?"Thường":"VIP";
-        const tdTime=document.createElement("td"); tdTime.textContent=new Date(s.ts||Date.now()).toLocaleString();
-        tr.append(tdName,tdSeat,tdType,tdTime); tbody.appendChild(tr);
-      }
-    }
 
-    function startFallback(){
-      if (fallbackTimer) return;
-      fallbackMode.textContent = 'bật'; fallbackMode.className='ok';
-      const url = `${firebaseConfig.databaseURL}/rooms/${ROOM}/seats.json`;
-      const tick = async () => {
-        try{
-          const res = await fetch(url, { cache: 'no-store' });
-          const json = await res.json();
-          applySnapshot(json || {});
-          readStatus.textContent = 'đang poll (REST)';
-        }catch(e){
-          readStatus.textContent = 'poll lỗi';
+        // Update selected seats display
+        function updateSelectedSeatsDisplay() {
+            // Clear current display
+            selectedSeatsContainer.innerHTML = '';
+            
+            if (selectedSeats.length === 0) {
+                selectedSeatsContainer.innerHTML = '<p class="text-gray-400 text-center">Chưa có ghế nào được chọn</p>';
+                totalPriceElement.textContent = '0 VND';
+                checkoutBtn.disabled = true;
+                return;
+            }
+            
+            // Add selected seats
+            let totalPrice = 0;
+            selectedSeats.forEach(seat => {
+                const seatElement = document.createElement('div');
+                seatElement.className = 'flex justify-between items-center';
+                seatElement.innerHTML = `
+                    <span>${seat.id} (${seat.type === 'vip' ? 'VIP' : 'Thường'})</span>
+                    <span class="font-medium">${seat.price.toLocaleString()} VND</span>
+                `;
+                selectedSeatsContainer.appendChild(seatElement);
+                totalPrice += seat.price;
+            });
+            
+            // Update total price
+            totalPriceElement.textContent = `${totalPrice.toLocaleString()} VND`;
+            checkoutBtn.disabled = false;
         }
-      };
-      tick();
-      fallbackTimer = setInterval(tick, 2000);
-    }
 
-    try{
-      onValue(seatsRef, (snap)=>{
-        readStatus.textContent='đã kết nối realtime'; readStatus.className='ok';
-        const data = snap.val() || {};
-        applySnapshot(data);
-      }, (err)=>{
-        readStatus.textContent = 'lỗi đọc realtime'; readStatus.className='bad';
-        startFallback();
-      });
-    }catch(e){
-      readStatus.textContent = 'lỗi thiết lập realtime'; readStatus.className='bad';
-      startFallback();
-    }
+        // Initialize checkout button
+        checkoutBtn.addEventListener('click', () => {
+            // Save selected seats to localStorage before checkout
+            saveSelectedSeats();
+            alert(`Bạn đã chọn ${selectedSeats.length} ghế với tổng giá ${totalPriceElement.textContent}. Chức năng thanh toán sẽ được thực hiện ở bước tiếp theo.`);
+        });
 
-    async function tryClaim(id){
-      if(!id){ alert("Hãy chọn ghế trước khi Xác nhận!"); return; }
-      const el=document.querySelector(`.seat[data-id="${id}"]`);
-      if(!el || el.classList.contains('blocked') || el.classList.contains('taken')) return;
-      const name=nameInput.value.trim(); if(!name){ alert("Nhập tên trước khi giữ ghế nhé!"); return; }
+        // Save selected seats to localStorage
+        function saveSelectedSeats() {
+            const customerName = document.getElementById('customer-name').value.trim();
+            if (selectedSeats.length > 0 && customerName) {
+                // Add booking to history
+                const newBooking = {
+                    name: customerName,
+                    seat: selectedSeats[0].id,
+                    type: selectedSeats[0].type,
+                    price: selectedSeats[0].price,
+                    movie: "Mưa Đỏ",
+                    cinema: "Lotte Thanh Hóa",
+                    date: "14/09/2025",
+                    time: "14:15"
+                };
+                
+                bookings.unshift(newBooking);
+                localStorage.setItem('bookings', JSON.stringify(bookings));
+                
+                // Add selected seat to booked seats
+                const newBookedSeats = [...bookedSeats, selectedSeats[0].id];
+                localStorage.setItem('bookedSeats', JSON.stringify(newBookedSeats));
+                
+                // Clear current selection
+                localStorage.removeItem('selectedSeats');
+                selectedSeats = [];
+                document.getElementById('customer-name').value = '';
+                updateSelectedSeatsDisplay();
+                updateBookedList();
+                
+                // Update UI to show booked seats
+                document.querySelectorAll('.seat').forEach(seat => {
+                    if (newBookedSeats.includes(seat.dataset.seat)) {
+                        seat.classList.add('booked');
+                        seat.classList.remove('selected');
+                        seat.disabled = true;
+                    }
+                });
+            } else if (!customerName) {
+                alert("Vui lòng nhập tên người đặt");
+            }
+        }
 
-      const myClaimSnap = await get(child(claimsRef, userId));
-      const claimed = myClaimSnap.val();
-      if (claimed && claimed !== id){ alert(`Bạn đã giữ ghế ${claimed}. Bấm 'Bỏ ghế' trước khi chọn ghế khác.`); return; }
+        // Update booked list display
+        function updateBookedList() {
+            const bookedList = document.getElementById('booked-list');
+            bookedList.innerHTML = '';
+            
+            if (bookings.length === 0) {
+                bookedList.innerHTML = '<p class="text-gray-400 text-center">Chưa có đặt chỗ nào</p>';
+                return;
+            }
+            
+            bookings.slice(0, 5).forEach(booking => {
+                const bookingElement = document.createElement('div');
+                bookingElement.className = 'bg-gray-600 p-3 rounded-lg';
+                bookingElement.innerHTML = `
+                    <div class="flex justify-between">
+                        <span class="font-medium">${booking.name}</span>
+                        <span class="text-blue-400">${booking.seat}</span>
+                    </div>
+                    <div class="text-xs text-gray-400 mt-1">
+                        ${booking.movie} • ${booking.cinema} • ${booking.date} ${booking.time}
+                    </div>
+                `;
+                bookedList.appendChild(bookingElement);
+            });
+        }
 
-      const seatRef=child(seatsRef, id);
-      const result=await runTransaction(seatRef, (cur)=>{
-        if(cur && cur.userId && cur.userId!==userId){ return cur; }
-        return { userId, name, ts: Date.now() };
-      });
-      if(!result.committed){ alert("Ghế vừa bị người khác giữ mất. Hãy chọn ghế khác!"); return; }
-      await set(child(claimsRef, userId), id);
-      document.querySelectorAll('.seat').forEach(s=>s.classList.remove('pending'));
-    }
-    confirmBtn.addEventListener('click', ()=>tryClaim(pendingSeat));
+        // Load selected seats from localStorage
+        function loadSelectedSeats() {
+            // All seats are available
+            document.querySelectorAll('.seat').forEach(seat => {
+                seat.classList.remove('booked');
+                seat.disabled = false;
+            });
+        }
 
-    releaseBtn.addEventListener('click', async ()=>{
-      if(!mySeat) return;
-      const seatPath=child(seatsRef, mySeat);
-      await runTransaction(seatPath, (cur)=>{ if(!cur || cur.userId!==userId) return cur; return null; });
-      await remove(child(claimsRef, userId));
-    });
-  </script>
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            generateSeats();
+            feather.replace();
+            loadSelectedSeats();
+            updateBookedList();
+        });
+
+        // Clear any temporary selection on page unload
+        window.addEventListener('beforeunload', () => {
+            localStorage.removeItem('selectedSeats');
+        });
+    </script>
 </body>
 </html>
