@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Phòng chiếu: Mưa Đỏ — Suất 14:15</title>
+  <style>
+    :root {
+      --seat-size: 44px;
+      --gap: 8px;
+      --aisle: 22px;        /* lối đi dọc giữa 9 và 10 */
+      --bg: #0f172a;
+      --text: #e5e7eb;
+      --regular: #f97316;   /* ghế thường A–C */
+      --vip: #06b6d4;       /* ghế VIP D–J */
+      --taken: #6b7280;
+      --mine: #22c55e;
+      --blocked: #0b1220;
+      --screen: #e5e7eb;
+      --badge: #0ea5e9;
+      --pendingOutline: #facc15; /* vàng */
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      display: grid; place-items: start center; min-height: 100svh; padding: 24px;
+    }
+    .app { width: min(1100px, 96vw); }
+    h1 { margin: 0 0 6px; font-size: 22px; font-weight: 800; }
+    .sub { margin: 0 0 16px; opacity: .9 }
+    .topbar { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom: 10px; }
+    .input { display:inline-flex; align-items:center; gap:8px; padding:10px 12px; border-radius:10px; background:#111827; }
+    .input input { background:transparent; border:none; outline:none; color:var(--text); font-size:14px; width:220px; }
+    button { border:none; background: var(--badge); color:white; padding:10px 14px; border-radius:10px; font-weight:600; cursor:pointer; }
+    button.secondary { background:#374151; }
+    .legend { display:flex; gap:14px; align-items:center; font-size:13px; opacity:.9 }
+    .dot { width:14px; height:14px; border-radius:4px; display:inline-block; margin-right:6px }
+    .screen { text-align:center; padding:10px; margin:16px auto 12px; border-radius:10px; color:#111827; background: var(--screen); width: 70%; font-weight:700; letter-spacing:.5px; }
+    .row { display: grid; grid-auto-flow: column; gap: var(--gap); align-items: center; }
+    .rowLabel { width: 28px; text-align: right; opacity: .95; font-weight: 800; }
+    .rowLabel.right { text-align: left; }
+    .colHeader { text-align:center; opacity:.85; font-weight:800; }
+    .seat {
+      width: var(--seat-size); height: var(--seat-size);
+      border-radius: 10px; background: var(--regular);
+      display: grid; place-items: center; font-weight: 800; cursor: pointer;
+      position: relative; user-select: none; transition: transform .05s ease;
+      outline: 2px solid transparent;
+    }
+    .seat.regular { background: var(--regular); }
+    .seat.vip { background: var(--vip); }
+    .seat:hover { transform: translateY(-2px); }
+    .seat.pending { outline-color: var(--pendingOutline); }
+    .seat.taken { background: var(--taken) !important; cursor: not-allowed; }
+    .seat.mine  { background: var(--mine) !important; outline-color: #16a34a; }
+    .seat.blocked { background: var(--blocked); cursor: default; }
+    .seat small { position:absolute; bottom:4px; font-size:10px; font-weight:700; opacity:.95; }
+    .aisle-v { width: var(--aisle); }
+    .footer { margin-top: 18px; opacity: .85; font-size: 12px; text-align:center }
+    .actions { display:flex; gap:10px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Phòng chiếu: Mưa Đỏ</h1>
+    <p class="sub">Suất chiếu: <strong>14:15</strong></p>
+    <div class="topbar">
+      <div class="input">
+        <span>👤 Tên bạn:</span>
+        <input id="nameInput" placeholder="Nhập tên để giữ ghế…" />
+      </div>
+      <div class="actions">
+        <button id="confirmBtn">Xác nhận</button>
+        <button id="releaseBtn" class="secondary" title="Bỏ ghế của bạn">Bỏ ghế</button>
+      </div>
+      <div class="legend" aria-hidden="true">
+        <span><span class="dot" style="background: var(--regular)"></span>Ghế thường (A–C)</span>
+        <span><span class="dot" style="background: var(--vip)"></span>Ghế VIP (D–J)</span>
+        <span><span class="dot" style="background: var(--taken)"></span>Đã giữ</span>
+        <span><span class="dot" style="background: var(--mine)"></span>Ghế của tôi</span>
+        <span style="display:inline-flex; align-items:center; gap:6px;"><span class="dot" style="background:transparent; border:2px solid var(--pendingOutline)"></span>Đang chọn</span>
+      </div>
+    </div>
+
+    <div class="screen">MÀN HÌNH</div>
+
+    <!-- Hàng tiêu đề số cột -->
+    <div id="headerRow" class="row" aria-hidden="true"></div>
+
+    <!-- Lưới ghế -->
+    <div id="grid" class="grid" role="grid" aria-label="Sơ đồ chỗ ngồi"></div>
+    <div class="footer">Web được tạo bởi <strong>Đoàn Minh Quân</strong></div>
+  </div>
+
+  <script type="module">
+    // ========== Firebase (thay bằng config của bạn) ==========
+    const firebaseConfig = {
+      apiKey: "YOUR_KEY",
+      authDomain: "YOUR_DOMAIN",
+      databaseURL: "https://xemphim-aed3c-default-rtdb.firebaseio.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_BUCKET",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    import { getDatabase, ref, onValue, runTransaction, set, get, child, remove } 
+      from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+    const app = initializeApp(firebaseConfig);
+    const db  = getDatabase(app);
+
+    // ========== User local id ==========
+    const USER_KEY = "seat_user_id_v1";
+    const NAME_KEY = "seat_user_name_v1";
+    const userId = localStorage.getItem(USER_KEY) || (() => {
+      const id = crypto.getRandomValues(new Uint32Array(4)).join("-");
+      localStorage.setItem(USER_KEY, id);
+      return id;
+    })();
+    const nameInput = document.getElementById('nameInput');
+    nameInput.value = localStorage.getItem(NAME_KEY) || "";
+    nameInput.addEventListener('input', () => {
+      localStorage.setItem(NAME_KEY, nameInput.value.trim());
+    });
+    const releaseBtn = document.getElementById('releaseBtn');
+    const confirmBtn = document.getElementById('confirmBtn');
+
+    // ========== Layout theo yêu cầu ==========
+    const rows = "ABCDEFGHIJ".split("");                // A..J
+    const cols = Array.from({length: 11}, (_,i)=> i+1);  // 1..11
+
+    // Lối đi dọc: tách 10-11 sang phải (sau cột 9)
+    const verticalAisleAfter = 9;
+
+    // Ghế không tồn tại
+    const blockedSeats = new Set([
+      // D–H chỉ 1–9 (không có 10-11)
+      "D10","D11","E10","E11","F10","F11","G10","G11","H10","H11",
+      // J bỏ 6 và 7
+      "J6","J7"
+    ]);
+    // A–C là ghế thường 1–9 (không có 10-11)
+    for (const r of ["A","B","C"]) { blockedSeats.add(`${r}10`); blockedSeats.add(`${r}11`); }
+
+    // Tính loại ghế: A–C regular, D–J vip
+    function seatClass(row){
+      return (["A","B","C"].includes(row)) ? "regular" : "vip";
+    }
+
+    const headerRow = document.getElementById("headerRow");
+    const grid = document.getElementById("grid");
+
+    // Render header số cột (có lối đi dọc)
+    function renderHeader(){
+      headerRow.innerHTML = "";
+      headerRow.appendChild(document.createElement("div")); // chừa chỗ cho label trái
+      for (const c of cols){
+        if (c===verticalAisleAfter+1){
+          const spacer = document.createElement("div");
+          spacer.className = "aisle-v";
+          headerRow.appendChild(spacer);
+        }
+        const h = document.createElement("div");
+        h.className = "colHeader";
+        h.style.width = "var(--seat-size)";
+        h.textContent = c;
+        headerRow.appendChild(h);
+      }
+      const rightSpacer = document.createElement("div");
+      rightSpacer.style.width = "28px";
+      headerRow.appendChild(rightSpacer);
+    }
+
+    function seatId(r,c){ return `${r}${c}` }
+
+    let pendingSeat = null;
+
+    function markPending(id) {
+      // Không cho pending nếu ghế blocked hoặc đã bị người khác giữ (UI sẽ luôn có class 'taken')
+      const el = document.querySelector(`.seat[data-id="${id}"]`);
+      if (!el || el.classList.contains('blocked') || el.classList.contains('taken')) return;
+
+      document.querySelectorAll('.seat').forEach(s => s.classList.remove('pending'));
+      el.classList.add('pending');
+      pendingSeat = id;
+    }
+
+    function renderGrid(){
+      grid.innerHTML = "";
+      for (const r of rows){
+        const rowEl = document.createElement("div");
+        rowEl.className = "row";
+        rowEl.setAttribute("role","row");
+
+        const left = document.createElement("div");
+        left.className = "rowLabel";
+        left.textContent = r;
+        rowEl.appendChild(left);
+
+        for (const c of cols){
+          if (c===verticalAisleAfter+1){
+            const v = document.createElement("div");
+            v.className = "aisle-v";
+            rowEl.appendChild(v);
+          }
+
+          const id = seatId(r,c);
+          const el = document.createElement("div");
+          el.className = `seat ${seatClass(r)}`;
+          el.dataset.id = id;
+
+          if (blockedSeats.has(id)) {
+            el.classList.add('blocked');
+          } else {
+            el.textContent = c;
+            const holder = document.createElement("small");
+            holder.className = "holder";
+            el.appendChild(holder);
+            el.addEventListener("click", () => markPending(id));
+          }
+          rowEl.appendChild(el);
+        }
+
+        const right = document.createElement("div");
+        right.className = "rowLabel right";
+        right.textContent = r;
+        rowEl.appendChild(right);
+
+        grid.appendChild(rowEl);
+      }
+    }
+
+    renderHeader();
+    renderGrid();
+
+    // ========== DB paths (lưu thông tin sau khi xác nhận) ==========
+    const ROOM = "mua-do-1415";
+    const seatsRef = ref(db, `rooms/${ROOM}/seats`);
+    const claimsRef = ref(db, `rooms/${ROOM}/claims`);
+
+    let mySeat = null;
+
+    onValue(seatsRef, (snap) => {
+      const data = snap.val() || {};
+      mySeat = null;
+      document.querySelectorAll('.seat').forEach(el => {
+        if (el.classList.contains('blocked')) return;
+        const id = el.dataset.id;
+        const s = data[id];
+        el.classList.remove('taken','mine');
+        const holder = el.querySelector('.holder');
+        if (holder) holder.textContent = "";
+        if (s && s.userId){
+          if (s.userId === userId){
+            el.classList.add('mine');
+            mySeat = id;
+          } else {
+            el.classList.add('taken');
+          }
+          if (holder && s.name) holder.textContent = s.name; // HIỂN THỊ TÊN NGƯỜI ĐÃ CHỌN
+        }
+      });
+      releaseBtn.disabled = !mySeat;
+      // nếu ghế pending đã bị người khác giữ, bỏ trạng thái pending
+      if (pendingSeat) {
+        const p = document.querySelector(`.seat[data-id="${pendingSeat}"]`);
+        if (p && p.classList.contains('taken')) {
+          p.classList.remove('pending');
+          pendingSeat = null;
+        }
+      }
+    });
+
+    async function tryClaim(id){
+      if (!id) { alert("Hãy chọn ghế trước khi Xác nhận!"); return; }
+      const el = document.querySelector(`.seat[data-id="${id}"]`);
+      if (!el || el.classList.contains('blocked') || el.classList.contains('taken')) return;
+
+      const name = nameInput.value.trim();
+      if (!name){ alert("Nhập tên trước khi giữ ghế nhé!"); return; }
+
+      const myClaimSnap = await get(child(claimsRef, userId));
+      const claimed = myClaimSnap.val();
+      if (claimed && claimed !== id){
+        alert(`Bạn đã giữ ghế ${claimed}. Bấm 'Bỏ ghế' trước khi chọn ghế khác.`);
+        return;
+      }
+
+      // transaction đảm bảo không cướp ghế
+      const seatRef = child(seatsRef, id);
+      const result = await runTransaction(seatRef, (cur) => {
+        if (cur && cur.userId && cur.userId !== userId){
+          return cur; // đã có người khác giữ
+        }
+        return { userId, name, ts: Date.now() };
+      });
+      if (!result.committed) {
+        alert("Ghế vừa bị người khác giữ mất. Hãy chọn ghế khác!");
+        return;
+      }
+      await set(child(claimsRef, userId), id);
+      pendingSeat = null;
+      document.querySelectorAll('.seat').forEach(s => s.classList.remove('pending'));
+    }
+
+    confirmBtn.addEventListener('click', () => tryClaim(pendingSeat));
+
+    releaseBtn.addEventListener('click', async () => {
+      if (!mySeat) return;
+      const seatPath = child(seatsRef, mySeat);
+      await runTransaction(seatPath, (cur) => {
+        if (!cur || cur.userId !== userId) return cur;
+        return null;
+      });
+      await remove(child(claimsRef, userId));
+    });
+  </script>
+</body>
+</html>
