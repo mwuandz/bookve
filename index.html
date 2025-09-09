@@ -190,6 +190,9 @@
         </div>
     </footer>
 
+    <!-- Add Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.globe.min.js"></script>
     <script>
         // Initialize Vanta.js background
@@ -223,17 +226,13 @@
         };
         let bookedSeats = [];
         let bookings = [];
-        
-        // Cloud storage API endpoint
-        const API_URL = 'https://your-cloud-api-endpoint.com/bookings';
 
         // Generate seat layout
         function generateSeats() {
             let html = '';
             const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
-            
-            // Fetch booked seats from cloud
-            fetchBookedSeats().then(bookedSeats => {
+            // Get booked seats from localStorage
+            const bookedSeats = [];
             
             // Add walkway after row C
             html += `
@@ -366,10 +365,11 @@
             alert(`Bạn đã chọn ${selectedSeats.length} ghế với tổng giá ${totalPriceElement.textContent}. Chức năng thanh toán sẽ được thực hiện ở bước tiếp theo.`);
         });
 
-        // Save selected seats to cloud
-        async function saveSelectedSeats() {
+        // Save selected seats to localStorage
+        function saveSelectedSeats() {
             const customerName = document.getElementById('customer-name').value.trim();
             if (selectedSeats.length > 0 && customerName) {
+                // Add booking to history
                 const newBooking = {
                     name: customerName,
                     seat: selectedSeats[0].id,
@@ -381,22 +381,12 @@
                     time: "14:15"
                 };
                 
-                try {
-                    const response = await fetch(API_URL, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(newBooking)
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('Failed to save booking');
-                    }
-                    
-                    // Update local state
-                    bookings.unshift(newBooking);
-                    bookedSeats.push(selectedSeats[0].id);
+                bookings.unshift(newBooking);
+                localStorage.setItem('bookings', JSON.stringify(bookings));
+                
+                // Add selected seat to booked seats
+                const newBookedSeats = [...bookedSeats, selectedSeats[0].id];
+                localStorage.setItem('bookedSeats', JSON.stringify(newBookedSeats));
                 
                 // Clear current selection
                 localStorage.removeItem('selectedSeats');
@@ -444,46 +434,139 @@
             });
         }
 
-        // Fetch booked seats from cloud
-        async function fetchBookedSeats() {
-            try {
-                const response = await fetch(API_URL);
-                if (!response.ok) {
-                    throw new Error('Failed to fetch bookings');
-                }
-                
-                const data = await response.json();
-                bookedSeats = data.map(booking => booking.seat);
-                bookings = data;
-                return bookedSeats;
-            } catch (error) {
-                console.error('Error fetching bookings:', error);
-                return [];
-            }
-        }
-        
-        // Load booked seats from cloud
-        async function loadBookedSeats() {
-            const bookedSeats = await fetchBookedSeats();
+        // Load selected seats from localStorage
+        function loadSelectedSeats() {
+            // All seats are available
             document.querySelectorAll('.seat').forEach(seat => {
-                if (bookedSeats.includes(seat.dataset.seat)) {
-                    seat.classList.add('booked');
-                    seat.disabled = true;
-                } else {
-                    seat.classList.remove('booked');
-                    seat.disabled = false;
-                }
+                seat.classList.remove('booked');
+                seat.disabled = false;
             });
-            updateBookedList();
         }
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyDz9bw4JQ5ZQ1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q1Q",
+            authDomain: "bookve-mua-do.firebaseapp.com",
+            projectId: "bookve-mua-do",
+            storageBucket: "bookve-mua-do.appspot.com",
+            messagingSenderId: "123456789012",
+            appId: "1:123456789012:web:abcdef1234567890abcdef"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
 
         // Initialize page
         document.addEventListener('DOMContentLoaded', async () => {
             generateSeats();
             feather.replace();
             await loadBookedSeats();
+            await updateBookedList();
         });
 
+        // Load booked seats from Firestore
+        async function loadBookedSeats() {
+            try {
+                const snapshot = await db.collection('bookings').get();
+                bookedSeats = snapshot.docs.map(doc => doc.data().seat);
+                updateSeatAvailability();
+            } catch (error) {
+                console.error("Error loading booked seats:", error);
+            }
+        }
+
+        // Update seat availability based on booked seats
+        function updateSeatAvailability() {
+            document.querySelectorAll('.seat').forEach(seat => {
+                if (bookedSeats.includes(seat.dataset.seat)) {
+                    seat.classList.add('booked');
+                    seat.classList.remove('selected');
+                    seat.disabled = true;
+                } else {
+                    seat.classList.remove('booked');
+                    seat.disabled = false;
+                }
+            });
+        }
+
+        // Save booking to Firestore
+        async function saveSelectedSeats() {
+            const customerName = document.getElementById('customer-name').value.trim();
+            if (selectedSeats.length > 0 && customerName) {
+                try {
+                    const newBooking = {
+                        name: customerName,
+                        seat: selectedSeats[0].id,
+                        type: selectedSeats[0].type,
+                        price: selectedSeats[0].price,
+                        movie: "Mưa Đỏ",
+                        cinema: "Lotte Thanh Hóa",
+                        date: "14/09/2025",
+                        time: "14:15",
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+                    
+                    // Add to Firestore
+                    await db.collection('bookings').add(newBooking);
+                    
+                    // Update local state
+                    bookings.unshift(newBooking);
+                    bookedSeats.push(selectedSeats[0].id);
+                    
+                    // Clear current selection
+                    selectedSeats = [];
+                    document.getElementById('customer-name').value = '';
+                    updateSelectedSeatsDisplay();
+                    updateSeatAvailability();
+                    await updateBookedList();
+                    
+                    alert("Đặt chỗ thành công!");
+                } catch (error) {
+                    console.error("Error saving booking:", error);
+                    alert("Có lỗi xảy ra khi đặt chỗ. Vui lòng thử lại.");
+                }
+            } else if (!customerName) {
+                alert("Vui lòng nhập tên người đặt");
+            }
+        }
+
+        // Update booked list from Firestore
+        async function updateBookedList() {
+            try {
+                const snapshot = await db.collection('bookings')
+                    .orderBy('timestamp', 'desc')
+                    .limit(5)
+                    .get();
+                
+                bookings = snapshot.docs.map(doc => doc.data());
+                
+                const bookedList = document.getElementById('booked-list');
+                bookedList.innerHTML = '';
+                
+                if (bookings.length === 0) {
+                    bookedList.innerHTML = '<p class="text-gray-400 text-center">Chưa có đặt chỗ nào</p>';
+                    return;
+                }
+                
+                bookings.forEach(booking => {
+                    const bookingElement = document.createElement('div');
+                    bookingElement.className = 'bg-gray-600 p-3 rounded-lg';
+                    bookingElement.innerHTML = `
+                        <div class="flex justify-between">
+                            <span class="font-medium">${booking.name}</span>
+                            <span class="text-blue-400">${booking.seat}</span>
+                        </div>
+                        <div class="text-xs text-gray-400 mt-1">
+                            ${booking.movie} • ${booking.cinema} • ${booking.date} ${booking.time}
+                        </div>
+                    `;
+                    bookedList.appendChild(bookingElement);
+                });
+            } catch (error) {
+                console.error("Error loading bookings:", error);
+            }
+        }
     </script>
 </body>
 </html>
