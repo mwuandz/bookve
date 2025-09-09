@@ -223,15 +223,17 @@
         };
         let bookedSeats = [];
         let bookings = [];
-        localStorage.removeItem('bookedSeats');
-        localStorage.removeItem('bookings');
+        
+        // Cloud storage API endpoint
+        const API_URL = 'https://your-cloud-api-endpoint.com/bookings';
 
         // Generate seat layout
         function generateSeats() {
             let html = '';
             const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
-            // Get booked seats from localStorage
-            const bookedSeats = [];
+            
+            // Fetch booked seats from cloud
+            fetchBookedSeats().then(bookedSeats => {
             
             // Add walkway after row C
             html += `
@@ -364,11 +366,10 @@
             alert(`Bạn đã chọn ${selectedSeats.length} ghế với tổng giá ${totalPriceElement.textContent}. Chức năng thanh toán sẽ được thực hiện ở bước tiếp theo.`);
         });
 
-        // Save selected seats to localStorage
-        function saveSelectedSeats() {
+        // Save selected seats to cloud
+        async function saveSelectedSeats() {
             const customerName = document.getElementById('customer-name').value.trim();
             if (selectedSeats.length > 0 && customerName) {
-                // Add booking to history
                 const newBooking = {
                     name: customerName,
                     seat: selectedSeats[0].id,
@@ -380,12 +381,22 @@
                     time: "14:15"
                 };
                 
-                bookings.unshift(newBooking);
-                localStorage.setItem('bookings', JSON.stringify(bookings));
-                
-                // Add selected seat to booked seats
-                const newBookedSeats = [...bookedSeats, selectedSeats[0].id];
-                localStorage.setItem('bookedSeats', JSON.stringify(newBookedSeats));
+                try {
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify(newBooking)
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to save booking');
+                    }
+                    
+                    // Update local state
+                    bookings.unshift(newBooking);
+                    bookedSeats.push(selectedSeats[0].id);
                 
                 // Clear current selection
                 localStorage.removeItem('selectedSeats');
@@ -433,27 +444,46 @@
             });
         }
 
-        // Load selected seats from localStorage
-        function loadSelectedSeats() {
-            // All seats are available
+        // Fetch booked seats from cloud
+        async function fetchBookedSeats() {
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) {
+                    throw new Error('Failed to fetch bookings');
+                }
+                
+                const data = await response.json();
+                bookedSeats = data.map(booking => booking.seat);
+                bookings = data;
+                return bookedSeats;
+            } catch (error) {
+                console.error('Error fetching bookings:', error);
+                return [];
+            }
+        }
+        
+        // Load booked seats from cloud
+        async function loadBookedSeats() {
+            const bookedSeats = await fetchBookedSeats();
             document.querySelectorAll('.seat').forEach(seat => {
-                seat.classList.remove('booked');
-                seat.disabled = false;
+                if (bookedSeats.includes(seat.dataset.seat)) {
+                    seat.classList.add('booked');
+                    seat.disabled = true;
+                } else {
+                    seat.classList.remove('booked');
+                    seat.disabled = false;
+                }
             });
+            updateBookedList();
         }
 
         // Initialize page
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             generateSeats();
             feather.replace();
-            loadSelectedSeats();
-            updateBookedList();
+            await loadBookedSeats();
         });
 
-        // Clear any temporary selection on page unload
-        window.addEventListener('beforeunload', () => {
-            localStorage.removeItem('selectedSeats');
-        });
     </script>
 </body>
 </html>
