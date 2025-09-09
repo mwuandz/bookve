@@ -8,17 +8,17 @@
     :root {
       --seat-size: 44px;
       --gap: 8px;
-      --aisle: 22px;        /* lối đi dọc giữa 9 và 10 */
+      --aisle: 22px;
       --bg: #0f172a;
       --text: #e5e7eb;
-      --regular: #f97316;   /* ghế thường A–C */
-      --vip: #06b6d4;       /* ghế VIP D–J */
+      --regular: #f97316;
+      --vip: #06b6d4;
       --taken: #6b7280;
       --mine: #22c55e;
       --blocked: #0b1220;
       --screen: #e5e7eb;
       --badge: #0ea5e9;
-      --pendingOutline: #facc15; /* vàng */
+      --pendingOutline: #facc15;
     }
     * { box-sizing: border-box; }
     body {
@@ -52,11 +52,9 @@
     .seat.vip { background: var(--vip); }
     .seat:hover { transform: translateY(-2px); }
     .seat.pending { outline-color: var(--pendingOutline); }
-    .seat.taken { background: var(--taken) !important; cursor: not-allowed; }
-    .seat.mine  { background: var(--mine) !important; outline-color: #16a34a; }
+    .seat.taken { background: var(--taken) !important; cursor: not-allowed; pointer-events: none; }
+    .seat.mine  { background: var(--mine) !important; outline-color: #16a34a; pointer-events: none; }
     .seat.blocked { background: var(--blocked); cursor: default; }
-    /* Ngăn click vào ghế đã giữ */
-    .seat.taken, .seat.mine { pointer-events: none; }
     .seat small { position:absolute; bottom:4px; font-size:10px; font-weight:700; opacity:.95; }
     .aisle-v { width: var(--aisle); }
     .footer { margin-top: 18px; opacity: .85; font-size: 12px; text-align:center }
@@ -89,13 +87,9 @@
 
     <div class="screen">MÀN HÌNH</div>
 
-    <!-- Hàng tiêu đề số cột -->
     <div id="headerRow" class="row" aria-hidden="true"></div>
-
-    <!-- Lưới ghế -->
     <div id="grid" class="grid" role="grid" aria-label="Sơ đồ chỗ ngồi"></div>
 
-    <!-- Danh sách người đã chọn -->
     <h2 style="margin-top:16px">Danh sách người đã chọn ghế</h2>
     <table id="bookingList" cellspacing="0" cellpadding="8" style="margin-top:8px; width:100%; border-collapse:collapse; text-align:center;">
       <thead>
@@ -113,24 +107,15 @@
   </div>
 
   <script type="module">
-    // ========== Firebase (thay bằng config của bạn) ==========
-    const firebaseConfig = {
-  apiKey: "AIzaSyDSYH9yGzdtm3RjZuR7yjLhj4VH9qm-9PQ",
-  authDomain: "xemphim-aed3c.firebaseapp.com",
-  databaseURL: "https://xemphim-aed3c-default-rtdb.firebaseio.com", // 👈 quan trọng
-  projectId: "xemphim-aed3c",
-  storageBucket: "xemphim-aed3c.firebasestorage.app",
-  messagingSenderId: "175453208138",
-  appId: "1:175453208138:web:7436fe257eaafb2c6bf0b3"
-};
+    const firebaseConfig = {"apiKey": "AIzaSyDSYH9yGzdtm3RjZuR7yjLhj4VH9qm-9PQ", "authDomain": "xemphim-aed3c.firebaseapp.com", "databaseURL": "https://xemphim-aed3c-default-rtdb.firebaseio.com", "projectId": "xemphim-aed3c", "storageBucket": "xemphim-aed3c.firebasestorage.app", "messagingSenderId": "175453208138", "appId": "1:175453208138:web:7436fe257eaafb2c6bf0b3"};
 
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
     import { getDatabase, ref, onValue, runTransaction, set, get, child, remove } 
       from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+
     const app = initializeApp(firebaseConfig);
     const db  = getDatabase(app);
 
-    // ========== User local id ==========
     const USER_KEY = "seat_user_id_v1";
     const NAME_KEY = "seat_user_name_v1";
     const userId = localStorage.getItem(USER_KEY) || (() => {
@@ -146,22 +131,16 @@
     const releaseBtn = document.getElementById('releaseBtn');
     const confirmBtn = document.getElementById('confirmBtn');
 
-    // ========== Layout theo yêu cầu ==========
-    const rows = "ABCDEFGHIJ".split("");                // A..J
-    const cols = Array.from({length: 11}, (_,i)=> i+1);  // 1..11
-    const verticalAisleAfter = 9; // tách 10–11 sang phải
+    const rows = "ABCDEFGHIJ".split("");
+    const cols = Array.from({length: 11}, (_,i)=> i+1);
+    const verticalAisleAfter = 9;
 
-    // Ghế không tồn tại
     const blockedSeats = new Set([
-      // D–H chỉ 1–9 (không có 10-11)
       "D10","D11","E10","E11","F10","F11","G10","G11","H10","H11",
-      // J bỏ 6 và 7
-      "J6","J7"
+      "J6","J7",
+      "A10","A11","B10","B11","C10","C11"
     ]);
-    // A–C là ghế thường 1–9 (không có 10-11)
-    for (const r of ["A","B","C"]) { blockedSeats.add(`${r}10`); blockedSeats.add(`${r}11`); }
 
-    // Tính loại ghế: A–C regular, D–J vip
     function seatClass(row){
       return (["A","B","C"].includes(row)) ? "regular" : "vip";
     }
@@ -169,10 +148,9 @@
     const headerRow = document.getElementById("headerRow");
     const grid = document.getElementById("grid");
 
-    // Render header số cột (có lối đi dọc)
     function renderHeader(){
       headerRow.innerHTML = "";
-      headerRow.appendChild(document.createElement("div")); // chừa chỗ cho label trái
+      headerRow.appendChild(document.createElement("div"));
       for (const c of cols){
         if (c===verticalAisleAfter+1){
           const spacer = document.createElement("div");
@@ -249,7 +227,6 @@
     renderHeader();
     renderGrid();
 
-    // Lắng nghe click bằng delegation để luôn kiểm tra trạng thái mới nhất
     grid.addEventListener('click', (e) => {
       const el = e.target.closest('.seat');
       if (!el) return;
@@ -257,7 +234,6 @@
       markPending(el.dataset.id);
     });
 
-    // ========== DB paths (lưu thông tin sau khi xác nhận) ==========
     const ROOM = "mua-do-1415";
     const seatsRef = ref(db, `rooms/${ROOM}/seats`);
     const claimsRef = ref(db, `rooms/${ROOM}/claims`);
@@ -265,7 +241,8 @@
     let mySeat = null;
 
     onValue(seatsRef, (snap) => {
-      const data = snap.val() || {};
+      const data = snap.val() || {
+      };
       mySeat = null;
       document.querySelectorAll('.seat').forEach(el => {
         if (el.classList.contains('blocked')) return;
@@ -281,15 +258,13 @@
           } else {
             el.classList.add('taken');
           }
-          if (holder && s.name) holder.textContent = s.name; // HIỂN THỊ TÊN NGƯỜI ĐÃ CHỌN
+          if (holder && s.name) holder.textContent = s.name;
         }
       });
       releaseBtn.disabled = !mySeat;
 
-      // Cập nhật bảng danh sách
       const tbody = document.querySelector("#bookingList tbody");
       tbody.innerHTML = "";
-      // Sắp xếp theo thời gian
       const entries = Object.entries(data || {}).filter(([_,s]) => s && s.userId && s.name);
       entries.sort((a,b)=> (a[1].ts||0) - (b[1].ts||0));
       for (const [id, s] of entries) {
@@ -310,7 +285,6 @@
         tbody.appendChild(tr);
       }
 
-      // Nếu ghế pending bị giữ mất
       if (pendingSeat) {
         const p = document.querySelector(`.seat[data-id="${pendingSeat}"]`);
         if (p && p.classList.contains('taken')) {
@@ -338,7 +312,7 @@
       const seatRef = child(seatsRef, id);
       const result = await runTransaction(seatRef, (cur) => {
         if (cur && cur.userId && cur.userId !== userId){
-          return cur; // đã có người khác giữ
+          return cur;
         }
         return { userId, name, ts: Date.now() };
       });
